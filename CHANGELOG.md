@@ -1,5 +1,11 @@
 # @read-frog/extension
 
+## 1.34.2
+
+### Patch Changes
+
+- [#1688](https://github.com/mengxi-ream/read-frog/pull/1688) [`eec1796`](https://github.com/mengxi-ream/read-frog/commit/eec1796490ad98268b2c529396aec20299db5d92) Thanks [@mengxi-ream](https://github.com/mengxi-ream)! - feat(selection-toolbar): add custom action settings shortcut
+
 ## 1.34.1
 
 ### Patch Changes
