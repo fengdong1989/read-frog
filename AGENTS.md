@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Architecture Topology (read first)
+
+Before any code change, read **`AGENT.md/README.md`** and comply with **`AGENT.md/INVARIANTS.md`**. Topology invariants take priority over feature/BUG-fix convenience.
+
 ## Testing Notes
 
 - `src/utils/host/translate/api/__tests__/free-api.test.ts` depends on live external translation services.
