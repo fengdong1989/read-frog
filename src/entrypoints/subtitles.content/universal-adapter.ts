@@ -11,13 +11,17 @@ import { getProviderConfigById } from "@/utils/config/helpers"
 import { getLocalConfig } from "@/utils/config/storage"
 import { HIDE_NATIVE_CAPTIONS_STYLE_ID, NAVIGATION_HANDLER_DELAY, TRANSLATE_BUTTON_CONTAINER_ID } from "@/utils/constants/subtitles"
 import { getDocumentDescription } from "@/utils/content/metadata"
-import { resolveLanguageCodeFromLocale } from "@/utils/content/page-language"
+import {
+  getSubtitleLanguageConfig,
+  resolveActualSubtitleSourceCode,
+  shouldSkipSameLanguageTranslation,
+} from "@/utils/subtitles/language-config"
 import { waitForElement } from "@/utils/dom/wait-for-element"
 import { OverlaySubtitlesError, ToastSubtitlesError } from "@/utils/subtitles/errors"
 import { optimizeSubtitles } from "@/utils/subtitles/processor/optimizer"
 import { buildSubtitlesSummaryContextHash, fetchSubtitlesSummary } from "@/utils/subtitles/processor/translator"
 import { downloadSubtitlesAsSrt } from "@/utils/subtitles/srt"
-import { subtitlesPositionAtom, subtitlesSettingsPanelOpenAtom, subtitlesSettingsPanelViewAtom, subtitlesStore } from "./atoms"
+import { subtitlesPositionAtom, subtitlesSettingsPanelOpenAtom, subtitlesSettingsPanelViewAtom, subtitlesStore, subtitlesVisibleAtom } from "./atoms"
 import { renderSubtitlesTranslateButton } from "./renderer/render-translate-button"
 import { SegmentationPipeline } from "./segmentation-pipeline"
 import { SubtitlesScheduler } from "./subtitles-scheduler"
@@ -84,8 +88,32 @@ export class UniversalVideoAdapter {
     return this.config.controls
   }
 
+  getDetectedSourceLangCode() {
+    return resolveActualSubtitleSourceCode(
+      "auto",
+      this.subtitlesFetcher.getSourceLanguage(),
+    ) ?? undefined
+  }
+
   toggleSubtitlesManually = (enabled: boolean) => {
     this.toggleSubtitlesWithSource(enabled, "manual")
+  }
+
+  refreshSubtitleTranslation = () => {
+    if (
+      !this.subtitlesScheduler
+      || this.sessionSubtitles.length === 0
+      || !subtitlesStore.get(subtitlesVisibleAtom)
+    ) {
+      return
+    }
+
+    this.clearRuntimeSession()
+    this.clearSourceCache()
+    this.subtitlesFetcher.cleanup()
+    this.subtitlesScheduler.reset()
+    this.subtitlesScheduler.setState("loading")
+    void this.startTranslation()
   }
 
   async handleSourceTrackChanged(): Promise<void> {
@@ -174,6 +202,9 @@ export class UniversalVideoAdapter {
     if (!await this.subtitlesFetcher.hasAvailableSubtitles()) {
       throw new OverlaySubtitlesError(i18n.t("subtitles.errors.noSubtitlesFound"))
     }
+
+    const config = await getLocalConfig()
+    this.subtitlesFetcher.setPreferredSourceCode?.(config?.videoSubtitles?.sourceCode ?? "auto")
 
     const subtitles = await this.subtitlesFetcher.fetch()
     if (subtitles.length === 0) {
@@ -483,14 +514,21 @@ export class UniversalVideoAdapter {
 
   private async shouldSkipTranslationForCurrentTrack(): Promise<boolean> {
     const config = await getLocalConfig()
-    const targetLanguage = config?.language.targetCode
-    const sourceLanguage = resolveLanguageCodeFromLocale(this.subtitlesFetcher.getSourceLanguage())
-
-    if (!targetLanguage || !sourceLanguage) {
+    if (!config) {
       return false
     }
 
-    return sourceLanguage === targetLanguage
+    const langConfig = getSubtitleLanguageConfig(config)
+    const actualSourceCode = resolveActualSubtitleSourceCode(
+      langConfig.sourceCode,
+      this.subtitlesFetcher.getSourceLanguage(),
+    )
+
+    return shouldSkipSameLanguageTranslation(
+      langConfig.sourceCode,
+      langConfig.targetCode,
+      actualSourceCode,
+    )
   }
 
   private processPassthroughSubtitles() {
@@ -544,7 +582,7 @@ export class UniversalVideoAdapter {
       onTranslated: fragments => scheduler.supplementSubtitles(fragments),
       onStateChange: (state, data) => scheduler.setState(state, data),
     })
-    this.translationCoordinator.start(videoContext)
+    this.translationCoordinator.start(videoContext, this.subtitlesFetcher.getSourceLanguage())
     const summaryContextHash = buildSubtitlesSummaryContextHash(videoContext, providerConfig)
     this.subtitlesSummaryContextHash = summaryContextHash ?? null
 

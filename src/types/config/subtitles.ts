@@ -1,3 +1,4 @@
+import { langCodeISO6393Schema } from "@read-frog/definitions"
 import { z } from "zod"
 import { MAX_BACKGROUND_OPACITY, MAX_FONT_SCALE, MAX_FONT_WEIGHT, MIN_BACKGROUND_OPACITY, MIN_FONT_SCALE, MIN_FONT_WEIGHT } from "@/utils/constants/subtitles"
 import { batchQueueConfigSchema, customPromptsConfigSchema, requestQueueConfigSchema } from "./translate"
@@ -34,6 +35,8 @@ export const videoSubtitlesSchema = z.object({
   enabled: z.boolean(),
   autoStart: z.boolean(),
   providerId: z.string().nonempty(),
+  sourceCode: langCodeISO6393Schema.or(z.literal("auto")),
+  targetCode: langCodeISO6393Schema,
   style: subtitlesStyleSchema,
   aiSegmentation: z.boolean(),
   requestQueueConfig: requestQueueConfigSchema,

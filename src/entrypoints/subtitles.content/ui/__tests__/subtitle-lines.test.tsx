@@ -8,21 +8,17 @@ import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { MainSubtitle, TranslationSubtitle } from "../subtitle-lines"
 
 const mockedAtoms = vi.hoisted(() => ({
-  languageAtom: null as any,
   videoSubtitlesAtom: null as any,
 }))
 
 vi.mock("@/utils/atoms/config", async () => {
   const { atom } = await import("jotai")
-  const languageAtom = atom(DEFAULT_CONFIG.language)
   const videoSubtitlesAtom = atom(DEFAULT_CONFIG.videoSubtitles)
 
-  mockedAtoms.languageAtom = languageAtom
   mockedAtoms.videoSubtitlesAtom = videoSubtitlesAtom
 
   return {
     configFieldsAtomMap: {
-      language: languageAtom,
       videoSubtitles: videoSubtitlesAtom,
     },
   }
@@ -30,11 +26,10 @@ vi.mock("@/utils/atoms/config", async () => {
 
 function createStoreWithLanguage(targetCode: LangCodeISO6393) {
   const store = createStore()
-  store.set(mockedAtoms.languageAtom, {
-    ...DEFAULT_CONFIG.language,
+  store.set(mockedAtoms.videoSubtitlesAtom, {
+    ...DEFAULT_CONFIG.videoSubtitles,
     targetCode,
   })
-  store.set(mockedAtoms.videoSubtitlesAtom, DEFAULT_CONFIG.videoSubtitles)
   return store
 }
 

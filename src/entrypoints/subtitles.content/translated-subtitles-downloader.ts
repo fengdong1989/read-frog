@@ -129,7 +129,7 @@ export class TranslatedSubtitlesDownloader {
   }
 
   private assertDifferentTargetLanguage(config: Config): void {
-    const targetLanguage = config.language.targetCode
+    const targetLanguage = config.videoSubtitles.targetCode
     const sourceLanguage = resolveLanguageCodeFromLocale(this.fetcher.getSourceLanguage())
 
     if (targetLanguage && sourceLanguage && sourceLanguage === targetLanguage) {
@@ -157,7 +157,7 @@ export class TranslatedSubtitlesDownloader {
 
     for (let index = 0; index < fragments.length; index += TRANSLATION_BATCH_SIZE) {
       const batch = fragments.slice(index, index + TRANSLATION_BATCH_SIZE)
-      const translatedBatch = await translateSubtitles(batch, videoContext, config)
+      const translatedBatch = await translateSubtitles(batch, videoContext, this.fetcher.getSourceLanguage(), config)
       this.assertActive(operationId)
       if (
         translatedBatch.length !== batch.length

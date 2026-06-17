@@ -38,9 +38,9 @@ export function MainSubtitle({ content, className }: SubtitleLineProps) {
 export function TranslationSubtitle({ content, className }: SubtitleLineProps) {
   const subtitle = useAtomValue(currentSubtitleAtom)
   const { style } = useAtomValue(configFieldsAtomMap.videoSubtitles)
-  const language = useAtomValue(configFieldsAtomMap.language)
+  const { targetCode } = useAtomValue(configFieldsAtomMap.videoSubtitles)
   const text = content ?? subtitle?.translation ?? ""
-  const { dir, lang } = getLanguageDirectionAndLang(language.targetCode)
+  const { dir, lang } = getLanguageDirectionAndLang(targetCode)
 
   return (
     <div

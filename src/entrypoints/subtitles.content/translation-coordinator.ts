@@ -21,6 +21,7 @@ export class TranslationCoordinator {
   private isTranslating = false
   private lastEmittedState: SubtitlesState = "idle"
   private videoContext: SubtitlesVideoContext = { videoTitle: "", subtitlesTextContent: "" }
+  private sourceLanguageHint: string | undefined
 
   private getFragments: () => SubtitlesFragment[]
   private getVideoElement: () => HTMLVideoElement | null
@@ -38,9 +39,12 @@ export class TranslationCoordinator {
     this.onStateChange = options.onStateChange
   }
 
-  start(videoContext?: SubtitlesVideoContext) {
+  start(videoContext?: SubtitlesVideoContext, sourceLanguageHint?: string) {
     if (videoContext !== undefined) {
       this.videoContext = videoContext
+    }
+    if (sourceLanguageHint !== undefined) {
+      this.sourceLanguageHint = sourceLanguageHint
     }
 
     const video = this.getVideoElement()
@@ -75,6 +79,7 @@ export class TranslationCoordinator {
     this.isTranslating = false
     this.lastEmittedState = "idle"
     this.videoContext = { videoTitle: "", subtitlesTextContent: "" }
+    this.sourceLanguageHint = undefined
   }
 
   clearFailed() {
@@ -123,7 +128,7 @@ export class TranslationCoordinator {
     batch.forEach(f => this.translatingStarts.add(f.start))
 
     try {
-      const translated = await translateSubtitles(batch, this.videoContext)
+      const translated = await translateSubtitles(batch, this.videoContext, this.sourceLanguageHint)
       translated.forEach((f) => {
         this.translatingStarts.delete(f.start)
         this.translatedStarts.add(f.start)

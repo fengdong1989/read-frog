@@ -1,3 +1,4 @@
+import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { ControlsConfig } from "@/entrypoints/subtitles.content/platforms"
 import type { UniversalVideoAdapter } from "@/entrypoints/subtitles.content/universal-adapter"
 import { Provider as JotaiProvider } from "jotai"
@@ -8,6 +9,8 @@ interface SubtitlesUIContextValue {
   toggleSubtitles: (enabled: boolean) => void
   downloadSourceSubtitles: () => Promise<void>
   downloadTranslatedSubtitles: () => Promise<void>
+  refreshSubtitleTranslation: () => void
+  detectedSourceLangCode?: LangCodeISO6393
   controlsConfig?: ControlsConfig
   embedded?: boolean
 }
@@ -24,7 +27,13 @@ export function useSubtitlesUI() {
 
 export type SubtitlesProvidersAdapter = Pick<
   UniversalVideoAdapter,
-  "downloadSourceSubtitles" | "downloadTranslatedSubtitles" | "embedded" | "getControlsConfig" | "toggleSubtitlesManually"
+  | "downloadSourceSubtitles"
+  | "downloadTranslatedSubtitles"
+  | "embedded"
+  | "getControlsConfig"
+  | "getDetectedSourceLangCode"
+  | "refreshSubtitleTranslation"
+  | "toggleSubtitlesManually"
 >
 
 export function SubtitlesProviders({
@@ -41,6 +50,8 @@ export function SubtitlesProviders({
           toggleSubtitles: adapter.toggleSubtitlesManually,
           downloadSourceSubtitles: adapter.downloadSourceSubtitles,
           downloadTranslatedSubtitles: adapter.downloadTranslatedSubtitles,
+          refreshSubtitleTranslation: adapter.refreshSubtitleTranslation,
+          detectedSourceLangCode: adapter.getDetectedSourceLangCode(),
           controlsConfig: adapter.getControlsConfig(),
           embedded: adapter.embedded,
         }}

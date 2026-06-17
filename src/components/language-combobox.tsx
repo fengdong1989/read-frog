@@ -10,7 +10,7 @@ import {
   ComboboxItem,
   ComboboxList,
 } from "@/components/ui/base-ui/combobox"
-import { filterLanguage, getLanguageItems } from "./language-combobox-options"
+import { filterLanguage, getLanguageItems, getTargetLanguageItems } from "./language-combobox-options"
 
 function AutoBadge() {
   return <span className="rounded-full bg-neutral-200 px-1 text-xs dark:bg-neutral-800">auto</span>
@@ -22,6 +22,8 @@ interface LanguageComboboxProps {
   detectedLangCode?: LangCodeISO6393
   placeholder?: string
   className?: string
+  container?: HTMLElement | null
+  includeAuto?: boolean
 }
 
 export function LanguageCombobox({
@@ -30,10 +32,12 @@ export function LanguageCombobox({
   detectedLangCode,
   placeholder,
   className,
+  container,
+  includeAuto = true,
 }: LanguageComboboxProps) {
   const languageItems = useMemo(
-    () => getLanguageItems(detectedLangCode),
-    [detectedLangCode],
+    () => includeAuto ? getLanguageItems(detectedLangCode) : getTargetLanguageItems(),
+    [detectedLangCode, includeAuto],
   )
 
   return (
@@ -51,7 +55,7 @@ export function LanguageCombobox({
         className={className}
         placeholder={placeholder ?? i18n.t("translationHub.searchLanguages")}
       />
-      <ComboboxContent className="w-fit">
+      <ComboboxContent className="w-fit" container={container}>
         <ComboboxList>
           {(item: LanguageItem) => (
             <ComboboxItem key={item.value} value={item}>

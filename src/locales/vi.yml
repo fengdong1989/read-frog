@@ -1171,3 +1171,12 @@ languages:
   wls: Tiếng Wallis
   rar: Tiếng Rarotongan
   hif: Tiếng Hindi Fiji
+    language:
+      title: Subtitle Languages
+      description: Set source and target languages for video subtitles independently from page translation.
+      sourceLabel: Source language
+      targetLabel: Target language
+      placeholder: Search languages or keep auto
+      targetPlaceholder: Search target language
+      sourceDescription: Auto follows the fetched subtitle track. Pick a language to prefer that YouTube caption track.
+      targetDescription: Translation output language for video subtitles only.

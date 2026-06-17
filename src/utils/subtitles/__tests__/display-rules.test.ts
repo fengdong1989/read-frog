@@ -1,6 +1,6 @@
 import type { StateData, SubtitlesFragment } from "../types"
 import { describe, expect, it } from "vitest"
-import { hasRenderableSubtitleByMode, isAwaitingTranslation } from "../display-rules"
+import { getSubtitleLineVisibility, hasRenderableSubtitleByMode, isAwaitingTranslation } from "../display-rules"
 
 function makeSubtitle(overrides?: Partial<SubtitlesFragment>): SubtitlesFragment {
   return {
@@ -30,6 +30,21 @@ describe("hasRenderableSubtitleByMode", () => {
   it("returns true for translationOnly with translation", () => {
     const sub = makeSubtitle({ translation: "你好" })
     expect(hasRenderableSubtitleByMode(sub, "translationOnly")).toBe(true)
+  })
+
+  it("returns true for translationOnly when same-language skip is resolved", () => {
+    const sub = makeSubtitle({ translationSkippedReason: "same-language" })
+    expect(hasRenderableSubtitleByMode(sub, "translationOnly")).toBe(true)
+  })
+})
+
+describe("getSubtitleLineVisibility", () => {
+  it("shows only main line when translation is skipped for same language", () => {
+    const sub = makeSubtitle({ translationSkippedReason: "same-language" })
+    expect(getSubtitleLineVisibility(sub, "bilingual")).toEqual({
+      showMain: true,
+      showTranslation: false,
+    })
   })
 })
 

@@ -10,4 +10,5 @@ export interface SubtitlesFragment {
   start: number
   end: number
   translation?: string
+  translationSkippedReason?: "same-language"
 }

@@ -1,3 +1,4 @@
+import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { SubtitlesFragment } from "../types"
 import type { Config } from "@/types/config/config"
 import type { ProviderConfig } from "@/types/config/provider"
@@ -14,6 +15,12 @@ import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
 import { normalizePromptContextValue } from "@/utils/host/translate/translate-text"
 import { sendMessage } from "@/utils/message"
 import { getSubtitlesTranslatePrompt } from "@/utils/prompts/subtitles"
+import {
+  getSubtitleLanguageConfig,
+  resolveActualSubtitleSourceCode,
+  shouldSkipSameLanguageTranslation,
+  toSubtitleTranslateLangConfig,
+} from "../language-config"
 
 function toFriendlyErrorMessage(error: unknown): string {
   if (error instanceof APICallError) {
@@ -70,10 +77,11 @@ function normalizeSubtitlePromptContext(videoContext: SubtitlesVideoContext): Su
 async function buildSubtitleHashComponents(
   text: string,
   providerConfig: ProviderConfig,
-  partialLangConfig: { sourceCode: Config["language"]["sourceCode"], targetCode: Config["language"]["targetCode"] },
+  partialLangConfig: { sourceCode: Config["videoSubtitles"]["sourceCode"], targetCode: Config["videoSubtitles"]["targetCode"] },
   enableAIContentAware: boolean,
   subtitlePromptContext: SubtitlePromptContext,
   subtitlesTextContent: string,
+  actualSourceCode?: LangCodeISO6393 | null,
 ): Promise<string[]> {
   const preparedText = prepareTranslationText(text)
   const normalizedSubtitlesTextContent = normalizePromptContextValue(subtitlesTextContent)
@@ -83,6 +91,10 @@ async function buildSubtitleHashComponents(
     partialLangConfig.sourceCode,
     partialLangConfig.targetCode,
   ]
+
+  if (actualSourceCode) {
+    hashComponents.push(`actualSourceCode:${actualSourceCode}`)
+  }
 
   if (!isLLMProviderConfig(providerConfig)) {
     return hashComponents
@@ -119,8 +131,9 @@ async function buildSubtitleHashComponents(
 
 async function translateSingleSubtitle(
   text: string,
-  langConfig: Config["language"],
+  langConfig: ReturnType<typeof getSubtitleLanguageConfig>,
   providerConfig: ProviderConfig,
+  actualSourceCode: LangCodeISO6393 | null,
   enableAIContentAware: boolean,
   videoContext: SubtitlesVideoContext,
 ): Promise<string> {
@@ -132,6 +145,7 @@ async function translateSingleSubtitle(
     enableAIContentAware,
     subtitlePromptContext,
     videoContext.subtitlesTextContent,
+    actualSourceCode,
   )
 
   if (enableAIContentAware) {
@@ -141,7 +155,11 @@ async function translateSingleSubtitle(
 
   return await sendMessage("enqueueSubtitlesTranslateRequest", {
     text,
-    langConfig,
+    langConfig: {
+      sourceCode: langConfig.sourceCode,
+      targetCode: langConfig.targetCode,
+      level: langConfig.level,
+    },
     providerConfig,
     scheduleAt: Date.now(),
     hash: Sha256Hex(...hashComponents),
@@ -180,6 +198,7 @@ export async function fetchSubtitlesSummary(
 export async function translateSubtitles(
   fragments: SubtitlesFragment[],
   videoContext: SubtitlesVideoContext,
+  sourceLanguageHint?: string,
   configOverride?: Config,
 ): Promise<SubtitlesFragment[]> {
   const config = configOverride ?? await getLocalConfig()
@@ -193,16 +212,31 @@ export async function translateSubtitles(
     return fragments.map(f => ({ ...f, translation: "" }))
   }
 
-  const langConfig = config.language
+  const langConfig = getSubtitleLanguageConfig(config)
+  const actualSourceCode = resolveActualSubtitleSourceCode(langConfig.sourceCode, sourceLanguageHint)
   const enableAIContentAware = !!config.translate.enableAIContentAware
 
+  if (shouldSkipSameLanguageTranslation(langConfig.sourceCode, langConfig.targetCode, actualSourceCode)) {
+    return fragments.map(fragment => ({
+      ...fragment,
+      translation: "",
+      translationSkippedReason: "same-language",
+    }))
+  }
+
   const translationPromises = fragments.map(fragment =>
-    translateSingleSubtitle(fragment.text, langConfig, providerConfig, enableAIContentAware, videoContext),
+    translateSingleSubtitle(
+      fragment.text,
+      langConfig,
+      providerConfig,
+      actualSourceCode,
+      enableAIContentAware,
+      videoContext,
+    ),
   )
 
   const results = await Promise.allSettled(translationPromises)
 
-  // If all translations failed, throw with friendly error message
   const allRejected = results.every((r): r is PromiseRejectedResult => r.status === "rejected")
   if (allRejected && results.length) {
     throw new Error(toFriendlyErrorMessage(results[0].reason))
@@ -216,3 +250,5 @@ export async function translateSubtitles(
     }
   })
 }
+
+export { toSubtitleTranslateLangConfig }

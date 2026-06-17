@@ -204,12 +204,18 @@ describe("subtitles translator", () => {
     const videoContext = { videoTitle: "Video title", subtitlesTextContent: "subtitle transcript" }
 
     await fetchSubtitlesSummary(videoContext, configSnapshot)
-    await translateSubtitles([{ text: "hello", start: 0, end: 1_000 }], videoContext, configSnapshot)
+    await translateSubtitles([{ text: "hello", start: 0, end: 1_000 }], videoContext, "en", configSnapshot)
 
     expect(getLocalConfigMock).not.toHaveBeenCalled()
     expect(sendMessageMock).toHaveBeenCalledWith(
       "enqueueSubtitlesTranslateRequest",
-      expect.objectContaining({ langConfig: configSnapshot.language }),
+      expect.objectContaining({
+        langConfig: {
+          sourceCode: configSnapshot.videoSubtitles.sourceCode,
+          targetCode: configSnapshot.videoSubtitles.targetCode,
+          level: configSnapshot.language.level,
+        },
+      }),
     )
   })
 

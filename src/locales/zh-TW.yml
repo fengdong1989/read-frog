@@ -1171,3 +1171,12 @@ languages:
   wls: 瓦利斯語
   rar: 拉羅湯加語
   hif: 斐濟印地語
+    language:
+      title: Subtitle Languages
+      description: Set source and target languages for video subtitles independently from page translation.
+      sourceLabel: Source language
+      targetLabel: Target language
+      placeholder: Search languages or keep auto
+      targetPlaceholder: Search target language
+      sourceDescription: Auto follows the fetched subtitle track. Pick a language to prefer that YouTube caption track.
+      targetDescription: Translation output language for video subtitles only.

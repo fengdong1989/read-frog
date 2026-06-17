@@ -1,3 +1,4 @@
+import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { SubtitlesFragment } from "../../types"
 import type { SubtitlesFetcher } from "../types"
 import type { CaptionTrack, PlayerData, YoutubeTimedText } from "./types"
@@ -19,6 +20,7 @@ import {
   WAIT_TIMEDTEXT_RESPONSE_TYPE,
 } from "@/utils/constants/subtitles"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
+import { resolveLanguageCodeFromLocale } from "@/utils/content/page-language"
 import { OverlaySubtitlesError } from "@/utils/subtitles/errors"
 import { getYoutubeVideoId } from "@/utils/subtitles/video-id"
 import { detectFormat } from "./format-detector"
@@ -67,6 +69,11 @@ export class YoutubeSubtitlesFetcher implements SubtitlesFetcher {
   private sourceLanguage: string = ""
   private cachedTrackHash: string | null = null
   private preSegmented: boolean = false
+  private preferredSourceCode: LangCodeISO6393 | "auto" = "auto"
+
+  setPreferredSourceCode(code: LangCodeISO6393 | "auto") {
+    this.preferredSourceCode = code
+  }
 
   async fetch(): Promise<SubtitlesFragment[]> {
     const videoId = getYoutubeVideoId()
@@ -114,6 +121,7 @@ export class YoutubeSubtitlesFetcher implements SubtitlesFetcher {
     this.sourceLanguage = ""
     this.cachedTrackHash = null
     this.preSegmented = false
+    this.preferredSourceCode = "auto"
   }
 
   async hasAvailableSubtitles(): Promise<boolean> {
@@ -165,7 +173,33 @@ export class YoutubeSubtitlesFetcher implements SubtitlesFetcher {
       return null
     }
 
-    return `${videoId}:${track.languageCode}:${track.kind ?? ""}:${track.vssId}`
+    return `${videoId}:${track.languageCode}:${track.kind ?? ""}:${track.vssId}:${this.preferredSourceCode}`
+  }
+
+  private findTrackForPreferredSource(tracks: CaptionTrack[]): CaptionTrack | null {
+    if (this.preferredSourceCode === "auto") {
+      return null
+    }
+
+    const matching = tracks.filter(
+      track => resolveLanguageCodeFromLocale(track.languageCode) === this.preferredSourceCode,
+    )
+
+    if (matching.length === 0) {
+      return null
+    }
+
+    const humanExact = matching.find(track => track.kind !== "asr" && !track.name)
+    if (humanExact) {
+      return humanExact
+    }
+
+    const human = matching.find(track => track.kind !== "asr")
+    if (human) {
+      return human
+    }
+
+    return matching[0] ?? null
   }
 
   private async tryFastFetch(videoId: string): Promise<{
@@ -349,6 +383,12 @@ export class YoutubeSubtitlesFetcher implements SubtitlesFetcher {
 
     if (tracks.length === 0)
       return null
+
+    // Priority 0: User-configured source language in Read Frog
+    const preferredTrack = this.findTrackForPreferredSource(tracks)
+    if (preferredTrack) {
+      return preferredTrack
+    }
 
     // Priority 1: User's selected track in YouTube player
     if (selectedTrackVssId) {
